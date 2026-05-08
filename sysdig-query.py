@@ -652,51 +652,6 @@ def cmd_run(token, base_url, uuid, save=False):
         print(f"\nSaved to: {filepath}")
 
 
-def cmd_query(token, base_url, query_text=None, save=False, save_fav=False):
-    interactive = (query_text is None)
-
-    if interactive:
-        action, qt, saved_uuid = curses.wrapper(
-            lambda scr: curses_query_editor(scr, _SAMPLE_QUERY, token, base_url)
-        )
-
-        if saved_uuid:
-            print(f"Saved as favorite: {saved_uuid}")
-
-        if action != "run" or not qt or not qt.strip():
-            if not saved_uuid:
-                print("Cancelled.")
-            return
-
-        uid = saved_uuid or "adhoc"
-        result = run_query(token, base_url, qt.strip())
-        result_text = json.dumps(result, indent=2)
-        fav_info = f"favorite: {uid}" if saved_uuid else None
-        curses.wrapper(
-            lambda scr: curses_result(scr, result_text, uid, info=fav_info)
-        )
-    else:
-        uid = "adhoc"
-
-        if save_fav:
-            try:
-                resp = save_favorite_query(token, base_url, query_text)
-                uid = resp.get("uuid", "adhoc")
-                print(f"Saved as favorite: {uid}")
-            except RuntimeError as e:
-                print(f"ERROR saving favorite: {e}")
-                sys.exit(1)
-
-        print("Running query...")
-        result = run_query(token, base_url, query_text)
-        result_text = json.dumps(result, indent=2)
-        print(result_text)
-
-        if save:
-            filepath = save_result(result, uid)
-            print(f"\nSaved to: {filepath}")
-
-
 def cmd_regions():
     print()
     print(f"{'Region':<35} {'SDC_SECURE_URL'}")
@@ -727,28 +682,6 @@ def main():
         help="Save output to sysdig-query-<uuid>-<epoch>.json in cwd"
     )
 
-    query_parser = subparsers.add_parser(
-        "query",
-        help="Run an ad-hoc SysQL query (opens interactive editor when --query is omitted)",
-    )
-    query_parser.add_argument(
-        "--query", "-q",
-        metavar="SYSQL",
-        dest="query_text",
-        help="SysQL query text; omit to open the interactive editor",
-    )
-    query_parser.add_argument(
-        "--save", "-s",
-        action="store_true",
-        help="Save query output to sysdig-query-<id>-<epoch>.json in cwd",
-    )
-    query_parser.add_argument(
-        "--save-favorite", "-f",
-        action="store_true",
-        dest="save_fav",
-        help="Save the query as a Sysdig favorite",
-    )
-
     if len(sys.argv) == 1:
         token = get_token()
         base_url = get_base_url()
@@ -768,13 +701,6 @@ def main():
         cmd_list(token, base_url)
     elif args.command == "run":
         cmd_run(token, base_url, args.uuid, save=args.save)
-    elif args.command == "query":
-        cmd_query(
-            token, base_url,
-            query_text=args.query_text,
-            save=args.save,
-            save_fav=args.save_fav,
-        )
     else:
         parser.print_help()
 
